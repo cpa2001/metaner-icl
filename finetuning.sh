@@ -1,0 +1,14 @@
+python finetuning_2gpu.py \
+--dataset data/conll03.1 \
+--shot 5 \
+--plm plm/metaner \
+--formatsconfig config/formats/finetune/t5.yaml \
+--output_dir tmp/conll03/metaner-ft \
+--do_train \
+--per_device_train_batch_size 4 \
+--save_strategy no \
+--num_train_epochs 200 \
+--learning_rate 1e-4 \
+--save_total_limit 1 \
+--warmup_ratio 0.06 \
+--remove_unused_columns False 
