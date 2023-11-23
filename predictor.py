@@ -25,6 +25,7 @@ import torch
 import tqdm
 import os
 import numpy as np
+from torch.nn import DataParallel
 
 def getinstruction(target_labels, mapping, gpt=False):
     if gpt:
@@ -232,6 +233,11 @@ def predict(model, dataset, data_collator, training_args, args, tokenizer, endid
                 pad_token_id=tokenizer.eos_token_id, torch_dtype=torch.float16
             )
 
+        # 应用 DataParallel
+        if torch.cuda.device_count() > 1:
+            print(f"使用 {torch.cuda.device_count()} GPUs")
+            model = DataParallel(model)
+
     os.makedirs(training_args.output_dir, exist_ok=True)
 
     print(len(dataset))
@@ -255,7 +261,28 @@ def predict(model, dataset, data_collator, training_args, args, tokenizer, endid
     with torch.no_grad():
         with open(training_args.output_dir + '/' + args.predictfile + '.json', 'w') as f:
             for batch in tqdm.tqdm(data_loader):
-                outputs = model.generate(inputs=batch['input_ids'].cuda(),attention_mask=batch['attention_mask'].cuda(),max_length=max_length,num_beams=1,eos_token_id=endid, decoder_start_token_id=decoder_start_token_id,return_dict_in_generate=True,output_scores =True)
+                if isinstance(model, DataParallel):
+                    outputs = model.module.generate(
+                        inputs=batch['input_ids'].cuda(),
+                        attention_mask=batch['attention_mask'].cuda(),
+                        max_length=max_length,
+                        num_beams=1,
+                        eos_token_id=endid, 
+                        decoder_start_token_id=decoder_start_token_id,
+                        return_dict_in_generate=True,
+                        output_scores =True
+                    )
+                else:
+                    outputs = model.generate(
+                        inputs=batch['input_ids'].cuda(),
+                        attention_mask=batch['attention_mask'].cuda(),
+                        max_length=max_length,
+                        num_beams=1,
+                        eos_token_id=endid, 
+                        decoder_start_token_id=decoder_start_token_id,
+                        return_dict_in_generate=True,
+                        output_scores =True
+                    )
                 preds = []
                 newdataset = []
                 batch = outputs.scores[0].size(0)
